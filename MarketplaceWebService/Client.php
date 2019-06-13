@@ -89,14 +89,21 @@ class MarketplaceWebService_Client implements MarketplaceWebService_Interface
    */
   public function __construct(
   $awsAccessKeyId, $awsSecretAccessKey, $config, $applicationName, $applicationVersion, $attributes = null) {
-	iconv_set_encoding('output_encoding', 'UTF-8');
-    iconv_set_encoding('input_encoding', 'UTF-8');
-    iconv_set_encoding('internal_encoding', 'UTF-8');
 
-    $this->awsAccessKeyId = $awsAccessKeyId;
+    if (PHP_VERSION_ID < 50600) {
+        iconv_set_encoding('input_encoding', 'UTF-8');
+        iconv_set_encoding('output_encoding', 'UTF-8');
+        iconv_set_encoding('internal_encoding', 'UTF-8');
+    } else {
+        ini_set('default_charset', 'UTF-8');
+    }
+
+    $this->awsAccessKeyId     = $awsAccessKeyId;
     $this->awsSecretAccessKey = $awsSecretAccessKey;
-    if (!is_null($config)) 
-      $this->config = array_merge($this->config, $config);
+
+    if (! is_null($config)) {
+        $this->config = array_merge($this->config, $config);
+    }
      
     $this->setUserAgentHeader($applicationName, $applicationVersion, $attributes);
   }
@@ -265,10 +272,11 @@ class MarketplaceWebService_Client implements MarketplaceWebService_Interface
       require_once ('MarketplaceWebService/Model/GetReportRequest.php');
       $request = new MarketplaceWebService_Model_GetReportRequest($request);
     }
+
     require_once ('MarketplaceWebService/Model/GetReportResponse.php');
 
     $httpResponse = $this->invoke($this->convertGetReport($request), $request->getReport());
-    $response = MarketplaceWebService_Model_GetReportResponse::fromXML($httpResponse['ResponseBody']);
+    $response     = MarketplaceWebService_Model_GetReportResponse::fromXML($httpResponse['ResponseBody']);
     $response->setResponseHeaderMetadata($httpResponse['ResponseHeaderMetadata']);
     return $response;
   }
@@ -550,10 +558,13 @@ class MarketplaceWebService_Client implements MarketplaceWebService_Interface
       require_once ('MarketplaceWebService/Model/GetReportListRequest.php');
       $request = new MarketplaceWebService_Model_GetReportListRequest($request);
     }
+
     require_once ('MarketplaceWebService/Model/GetReportListResponse.php');
+
     $httpResponse = $this->invoke($this->convertGetReportList($request));
     $response = MarketplaceWebService_Model_GetReportListResponse::fromXML($httpResponse['ResponseBody']);
     $response->setResponseHeaderMetadata($httpResponse['ResponseHeaderMetadata']);
+
     return $response;
   }
 
@@ -793,8 +804,8 @@ class MarketplaceWebService_Client implements MarketplaceWebService_Interface
    */
   private function invoke(array $converted, $dataHandle = null)
   {
-  	
-  	$parameters = $converted[CONVERTED_PARAMETERS_KEY];
+    
+    $parameters = $converted[CONVERTED_PARAMETERS_KEY];
     $actionName = $parameters["Action"];
     $response = array();
     $responseBody = null;
@@ -802,7 +813,7 @@ class MarketplaceWebService_Client implements MarketplaceWebService_Interface
     
     /* Submit the request and read response body */
     try {
-    	
+        
     // Ensure the endpoint URL is set.
     if (empty($this->config['ServiceURL'])) {
         throw new MarketplaceWebService_Exception(
@@ -823,30 +834,30 @@ class MarketplaceWebService_Client implements MarketplaceWebService_Interface
           $httpStatus = $response['Status'];
           
           switch ($httpStatus) {
-          	case 200:
-          		$shouldRetry = false;
-          		break;
-          		
-          	case 500:
-          	case 503:
-          		require_once('MarketplaceWebService/Model/ErrorResponse.php');
-		          $errorResponse = MarketplaceWebService_Model_ErrorResponse::fromXML($response['ResponseBody']);
-		          
-		          // We will not retry throttling errors since this would just add to the throttling problem.
-		          $shouldRetry = ($errorResponse->getError()->getCode() === 'RequestThrottled')
-		            ? false : true;
-		              
-		          if ($shouldRetry && $retries <= $this->config['MaxErrorRetry']) {
-		            $this->pauseOnRetry(++$retries); 
-		          } else {
-		            throw $this->reportAnyErrors($response['ResponseBody'], $response['Status'], $response['ResponseHeaderMetadata']);
-		          }
-          		break;
-          		
-          	default:
-          		$shouldRetry = false;
-          		throw $this->reportAnyErrors($response['ResponseBody'], $response['Status'], $response['ResponseHeaderMetadata']);
-          		break;
+            case 200:
+                $shouldRetry = false;
+                break;
+                
+            case 500:
+            case 503:
+                require_once('MarketplaceWebService/Model/ErrorResponse.php');
+                  $errorResponse = MarketplaceWebService_Model_ErrorResponse::fromXML($response['ResponseBody']);
+                  
+                  // We will not retry throttling errors since this would just add to the throttling problem.
+                  $shouldRetry = ($errorResponse->getError()->getCode() === 'RequestThrottled')
+                    ? false : true;
+                      
+                  if ($shouldRetry && $retries <= $this->config['MaxErrorRetry']) {
+                    $this->pauseOnRetry(++$retries); 
+                  } else {
+                    throw $this->reportAnyErrors($response['ResponseBody'], $response['Status'], $response['ResponseHeaderMetadata']);
+                  }
+                break;
+                
+            default:
+                $shouldRetry = false;
+                throw $this->reportAnyErrors($response['ResponseBody'], $response['Status'], $response['ResponseHeaderMetadata']);
+                break;
           }
           
           /* Rethrow on deserializer error */
@@ -930,13 +941,13 @@ class MarketplaceWebService_Client implements MarketplaceWebService_Interface
     
     // Only attempt to verify the Content-MD5 value if the request was successful.
     if (RequestType::getRequestType($action) === RequestType::POST_DOWNLOAD) {
-    	if ($code != 200) {
-    	  rewind($this->errorResponseBody);
-        $httpResponse =  stream_get_contents($this->errorResponseBody);	
-    	} else {
+        if ($code != 200) {
+          rewind($this->errorResponseBody);
+        $httpResponse =  stream_get_contents($this->errorResponseBody); 
+        } else {
         $this->verifyContentMd5($this->getParsedHeader($parsedHeader,'Content-MD5'), $dataHandle);
         $httpResponse = $this->getDownloadResponseDocument($action, $parsedHeader);
-    	}
+        }
     }
     
     // Cleanup open streams and cURL instance.
@@ -1014,17 +1025,17 @@ class MarketplaceWebService_Client implements MarketplaceWebService_Interface
    * @return int - number of byes written.
    */
   private function responseCallback($ch, $string) {
-  	$httpStatusCode = (int) curl_getinfo($this->curlClient, CURLINFO_HTTP_CODE);
-  	
-  	// For unsuccessful responses, i.e. non-200 HTTP responses, we write the response body
-  	// into a separate stream.
-  	$responseHandle;
-  	if ($httpStatusCode == 200) {
-  		$responseHandle = $this->responseBodyContents;
-  	} else {
-  		$responseHandle = $this->errorResponseBody;
-  	}
-  	
+    $httpStatusCode = (int) curl_getinfo($this->curlClient, CURLINFO_HTTP_CODE);
+    
+    // For unsuccessful responses, i.e. non-200 HTTP responses, we write the response body
+    // into a separate stream.
+    $responseHandle;
+    if ($httpStatusCode == 200) {
+        $responseHandle = $this->responseBodyContents;
+    } else {
+        $responseHandle = $this->errorResponseBody;
+    }
+    
     return fwrite($responseHandle, $string);
   }
 
@@ -1425,7 +1436,7 @@ class MarketplaceWebService_Client implements MarketplaceWebService_Interface
         $parameters['Merchant'] =  $request->getMerchant();
       }
       if ($request->isSetMarketplaceIdList()) {
-	$marketplaceIdList = $request->getMarketplaceIdList();
+    $marketplaceIdList = $request->getMarketplaceIdList();
         foreach  ($marketplaceIdList->getId() as $idIndex => $id) {
           $parameters['MarketplaceIdList.Id.'.($idIndex + 1)] =  $id;
         }       
@@ -1570,7 +1581,7 @@ class MarketplaceWebService_Client implements MarketplaceWebService_Interface
         $parameters['Merchant'] =  $request->getMerchant();
       }
       if ($request->isSetMarketplaceIdList()) {
-	$marketplaceIdList = $request->getMarketplaceIdList();
+    $marketplaceIdList = $request->getMarketplaceIdList();
         foreach  ($marketplaceIdList->getId() as $idIndex => $id) {
           $parameters['MarketplaceIdList.Id.'.($idIndex + 1)] =  $id;
         }       
@@ -1931,7 +1942,7 @@ class MarketplaceWebService_Client implements MarketplaceWebService_Interface
         $parameters['MWSAuthToken'] = $request->getMWSAuthToken();
       }
       
-	  return array(CONVERTED_PARAMETERS_KEY => $parameters, CONVERTED_HEADERS_KEY => $this->defaultHeaders);
+      return array(CONVERTED_PARAMETERS_KEY => $parameters, CONVERTED_HEADERS_KEY => $this->defaultHeaders);
     }
 
 

@@ -1,0 +1,11 @@
+{
+    "name": "insidedata/amazon-wms",
+    "type": "library",
+    "authors": [
+        {
+            "name": "andrew-southwell",
+            "email": "andrew@insidedata.co.uk"
+        }
+    ],
+    "require": {}
+}

@@ -25,7 +25,7 @@ require_once ('MarketplaceWebService/Interface.php');
  * The Amazon Marketplace Web Service contain APIs for inventory and order management.
  * 
  */
-class  MarketplaceWebService_Mock implements MarketplaceWebService_Interface
+class MarketplaceWebService_Mock implements MarketplaceWebService_Interface
 {
     // Public API ------------------------------------------------------------//
 
@@ -261,7 +261,7 @@ class  MarketplaceWebService_Mock implements MarketplaceWebService_Interface
      *
      * @throws MarketplaceWebService_Exception
      */
-    public function getReportList($request) 
+    public function getReportList($request)
     {
         require_once ('MarketplaceWebService/Model/GetReportListResponse.php');
         return MarketplaceWebService_Model_GetReportListResponse::fromXML($this->invoke('GetReportList'));
